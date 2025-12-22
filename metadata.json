@@ -1,0 +1,5 @@
+{
+  "name": "MD2Word Pro",
+  "description": "A high-fidelity Markdown to Word converter with automatic image embedding, Base64 support, and real-time processing logs.",
+  "requestFramePermissions": []
+}
