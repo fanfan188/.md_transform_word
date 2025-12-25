@@ -21,3 +21,8 @@ export enum ConversionStatus {
   COMPLETED = 'COMPLETED',
   ERROR = 'ERROR'
 }
+
+export enum ConversionMode {
+  MD_TO_DOCX = 'MD_TO_DOCX',
+  DOCX_TO_MD = 'DOCX_TO_MD'
+}

@@ -22,6 +22,26 @@ export const convertToDocx = async (
   const tokens = marked.lexer(markdown);
   const sections: any[] = [];
 
+  const resolveImage = (href: string): ArrayBuffer | undefined => {
+    // 1. Try exact match (best for folder structures)
+    if (images.has(href)) return images.get(href);
+    
+    // 2. Try normalized path (remove leading ./ or /)
+    const normalized = href.replace(/^\.?\//, '');
+    if (images.has(normalized)) return images.get(normalized);
+    
+    // 3. Try filename only fallback
+    const fileName = href.split('/').pop() || '';
+    if (images.has(fileName)) return images.get(fileName);
+
+    // 4. Deep search (find any key ending with the requested path)
+    for (let [key, val] of images.entries()) {
+      if (key.endsWith(href) || key.endsWith(normalized)) return val;
+    }
+    
+    return undefined;
+  };
+
   for (const token of tokens) {
     switch (token.type) {
       case 'heading':
@@ -40,18 +60,17 @@ export const convertToDocx = async (
         if (token.tokens) {
           for (const subToken of token.tokens) {
             if (subToken.type === 'image') {
-              const fileName = subToken.href.split('/').pop() || '';
-              const imgData = images.get(fileName) || images.get(subToken.href);
+              const imgData = resolveImage(subToken.href);
               
               if (imgData) {
-                onLog(`Embedding image: ${fileName}`, "success");
+                onLog(`Matched asset: ${subToken.href}`, "success");
                 children.push(new ImageRun({
                   data: imgData,
                   transformation: { width: 500, height: 300 },
                 }));
               } else {
-                onLog(`Image not found in local assets: ${subToken.href}`, "warning");
-                children.push(new TextRun({ text: `\n[MISSING IMAGE: ${subToken.href}]\n`, color: "FF0000", bold: true }));
+                onLog(`Image link broken or missing: ${subToken.href}`, "warning");
+                children.push(new TextRun({ text: `\n[IMAGE NOT LOADED: ${subToken.href}]\n`, color: "FF0000", bold: true }));
               }
             } else if (subToken.type === 'link') {
                children.push(new ExternalHyperlink({
@@ -94,13 +113,12 @@ export const convertToDocx = async (
         break;
 
       case 'code': {
-        // Handle code block by splitting lines and adding breaks to preserve formatting
         const lines = token.text.split('\n');
         const codeRuns = lines.map((line, index) => new TextRun({
           text: line,
           font: "Consolas",
           size: 18,
-          break: index > 0 ? 1 : 0, // Add line break for all but the first line
+          break: index > 0 ? 1 : 0,
         }));
 
         sections.push(new Paragraph({
@@ -112,8 +130,8 @@ export const convertToDocx = async (
             left: { color: "E2E8F0", space: 8, style: BorderStyle.SINGLE, size: 4 },
             right: { color: "E2E8F0", space: 8, style: BorderStyle.SINGLE, size: 4 },
           },
-          spacing: { before: 240, after: 240, line: 320 }, // Increased line spacing for readability
-          indent: { left: 240, right: 240 }, // Simulated internal padding
+          spacing: { before: 240, after: 240, line: 320 },
+          indent: { left: 240, right: 240 },
         }));
         break;
       }
